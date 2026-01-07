@@ -1,33 +1,20 @@
 version: 2
 jobs:
  build:
-  working_directory: /go/src/github.com/sqallFF/SecuringDevops
+  working_directory: /go/src/github.com/sqallFF/invoicer-chapter2
   docker:
    - image: circleci/golang:1.10
   steps:
    - checkout
-   - run:
-      name: Debug
-      command: |
-       echo "CIRCLE_PROJECT_USERNAME: ${CIRCLE_PROJECT_USERNAME}"
-       echo "CIRCLE_PROJECT_REPONAME: ${CIRCLE_PROJECT_REPONAME}"
-       pwd
-       ls -la
    - setup_remote_docker
 
    - run: 
       name: Setup environment
       command: |
-       gb="/src/github.com/${CIRCLE_PROJECT_USERNAME}";
-       if [ ${CIRCLE_PROJECT_USERNAME} == 'Securing-DevOps' ]; then
-         dr="securingdevops"
-       else
-         dr=$DOCKER_USER
-       fi
        cat >> $BASH_ENV << EOF
        export GOPATH_HEAD="$(echo ${GOPATH}|cut -d ':' -f 1)"
-       export GOPATH_BASE="$(echo ${GOPATH}|cut -d ':' -f 1)${gb}"
-       export DOCKER_REPO="$dr"
+       export GOPATH_BASE="$(echo ${GOPATH}|cut -d ':' -f 1)/src/github.com/sqallFF"
+       export DOCKER_REPO="${DOCKER_USER}"
        EOF
    - run: mkdir -p "${GOPATH_BASE}"
    - run: mkdir -p "${GOPATH_HEAD}/bin"
@@ -35,19 +22,18 @@ jobs:
    - run:
       name: Testing application
       command: |
-          go test \
-          github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
+          go test github.com/sqallFF/invoicer-chapter2
 
    - deploy:
        command: |
          if [ "${CIRCLE_BRANCH}" == "master" ]; then
            docker login -u ${DOCKER_USER} -p ${DOCKER_PASS};
            go install --ldflags '-extldflags "-static"' \
-           github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME};
+           github.com/sqallFF/invoicer-chapter2;
            mkdir bin;
-           cp "$GOPATH_HEAD/bin/${CIRCLE_PROJECT_REPONAME}" bin/invoicer;
-           docker build -t ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME} .;
+           cp "$GOPATH_HEAD/bin/invoicer-chapter2" bin/invoicer;
+           docker build -t ${DOCKER_REPO}/invoicer-chapter2 .;
            docker images --no-trunc | awk '/^app/ {print $3}' | \
              sudo tee $CIRCLE_ARTIFACTS/docker-image-shasum256.txt;
-           docker push ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME};
+           docker push ${DOCKER_REPO}/invoicer-chapter2;
          fi
